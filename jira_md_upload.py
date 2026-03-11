@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from typing import Optional
 
 import requests
 
@@ -26,12 +27,18 @@ def md_to_jira(md_text: str) -> str:
         raise RuntimeError(f"pandoc failed: {e.stderr}") from e
 
 
-def update_description(base_url: str, issue_key: str, username: str, password: str, description: str):
+def update_issue(base_url: str, issue_key: str, username: str, password: str, description: str, summary: Optional[str] = None):
     url = f"{base_url.rstrip('/')}/rest/api/2/issue/{issue_key}"
+
+    fields = {
+        "description": description
+    }
+
+    if summary is not None:
+        fields["summary"] = summary
+
     payload = {
-        "fields": {
-            "description": description
-        }
+        "fields": fields
     }
 
     resp = requests.put(
@@ -54,10 +61,15 @@ def main():
     parser.add_argument("--user", default=os.environ.get("JIRA_USER"))
     parser.add_argument("--password", default=os.environ.get("JIRA_PASSWORD"))
     parser.add_argument("--plain", action="store_true", help="upload raw markdown without conversion")
+    parser.add_argument("--summary", help="also update Jira issue summary")
     args = parser.parse_args()
 
     if not args.jira_url or not args.user or not args.password:
         print("Set JIRA_URL, JIRA_USER, JIRA_PASSWORD", file=sys.stderr)
+        sys.exit(1)
+
+    if args.summary is not None and not args.summary.strip():
+        print("--summary must not be empty", file=sys.stderr)
         sys.exit(1)
 
     with open(args.markdown_file, "r", encoding="utf-8") as f:
@@ -65,12 +77,13 @@ def main():
 
     body = md if args.plain else md_to_jira(md)
 
-    update_description(
+    update_issue(
         base_url=args.jira_url,
         issue_key=args.issue_key,
         username=args.user,
         password=args.password,
         description=body,
+        summary=args.summary,
     )
 
     print(f"Updated {args.issue_key}")
