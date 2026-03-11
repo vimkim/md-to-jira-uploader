@@ -6,6 +6,25 @@ The script reads a Markdown file, optionally converts it to Jira wiki markup usi
 
 ---
 
+## Demo
+
+<table>
+<tr>
+<td align="center">
+
+### markdown file
+<img width="938" src="https://github.com/user-attachments/assets/bdb14aa5-b98e-4a2a-912d-bc85388fe774" />
+
+</td>
+<td align="center">
+
+### auto-created jira issue
+<img width="938" src="https://github.com/user-attachments/assets/6ace481a-5942-4e99-a1c6-67aa4145072a" />
+
+</td>
+</tr>
+</table>
+
 ## Requirements
 
 * Python 3.7+
