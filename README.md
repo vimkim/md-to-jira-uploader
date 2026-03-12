@@ -71,3 +71,34 @@ just upload-26597
 - Overwrites the current issue description.
 - Requires edit permission on the Jira issue.
 - Uses Jira Server/Data Center REST API v2: `/rest/api/2/issue/{issueKey}`
+
+---
+
+## Korean Spacing Fix (`korean-spacing.py`)
+
+Jira cannot render `*italic*` or `**bold**` when the markers are directly adjacent to Korean characters. This script inserts a single space before an opening marker and after a closing marker when the neighboring character is Korean.
+
+### Usage
+
+```sh
+python korean-spacing.py -i input.md -o output.md
+```
+
+| Flag | Description |
+|------|-------------|
+| `-i` / `--input` | Source Markdown file |
+| `-o` / `--output` | Destination file (can be the same as input) |
+
+### Example
+
+Before:
+```
+이것은**중요한**내용입니다.
+```
+
+After:
+```
+이것은 **중요한** 내용입니다.
+```
+
+Handles `**bold**`, `*italic*`, and `` `code` `` spans.
