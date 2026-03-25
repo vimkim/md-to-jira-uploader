@@ -10,3 +10,4 @@ dependencies = ["requests"]
 
 [project.scripts]
 jira-md-upload = "jira_md_upload:main"
+korean-spacing = "korean_spacing:main"
