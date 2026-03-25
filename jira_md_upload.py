@@ -6,7 +6,43 @@ import subprocess
 import sys
 from typing import Optional
 
+import re
+
 import requests
+
+
+def fix_jira_bold_code_nesting(text: str) -> str:
+    """Fix {{monospace}} inside *bold* in JIRA wiki markup.
+
+    JIRA wiki cannot render {{monospace}} nested inside *bold*.
+    Splits: *foo {{bar}} baz* → *foo* {{bar}} *baz*
+    """
+
+    def _fix_line(line: str) -> str:
+        # Skip list items (lines starting with * or ** as bullets)
+        if re.match(r"\s*\*+\s", line):
+            return line
+
+        def _split_bold(m):
+            inner = m.group(1)
+            if "{{" not in inner:
+                return m.group(0)
+
+            segments = re.split(r"(\{\{.*?\}\})", inner)
+            parts = []
+            for seg in segments:
+                if seg.startswith("{{") and seg.endswith("}}"):
+                    parts.append(seg)
+                else:
+                    stripped = seg.strip()
+                    if stripped:
+                        parts.append(f"*{stripped}*")
+            return " ".join(parts)
+
+        # Match JIRA bold *...* (non-space after opening, non-space before closing)
+        return re.sub(r"\*(?!\s)([^*\n]+?)(?<!\s)\*", _split_bold, line)
+
+    return "\n".join(_fix_line(line) for line in text.split("\n"))
 
 
 def md_to_jira(md_text: str) -> str:
@@ -75,7 +111,7 @@ def main():
     with open(args.markdown_file, "r", encoding="utf-8") as f:
         md = f.read()
 
-    body = md if args.plain else md_to_jira(md)
+    body = md if args.plain else fix_jira_bold_code_nesting(md_to_jira(md))
 
     update_issue(
         base_url=args.jira_url,
