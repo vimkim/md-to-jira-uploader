@@ -45,6 +45,31 @@ def fix_jira_bold_code_nesting(text: str) -> str:
     return "\n".join(_fix_line(line) for line in text.split("\n"))
 
 
+def sanitize_markdown(text: str) -> str:
+    """Ensure blank lines before headings, lists, and fenced code blocks.
+
+    Without these blank lines, pandoc may collapse adjacent elements
+    (e.g. heading + list) into a single paragraph, breaking JIRA rendering.
+    """
+    lines = text.split("\n")
+    out = []
+    for i, line in enumerate(lines):
+        if i > 0 and out and out[-1].strip() != "":
+            needs_blank = False
+            if re.match(r"^#{1,6}\s", line):  # heading
+                needs_blank = True
+            elif re.match(r"^[-*+]\s", line):  # unordered list start
+                needs_blank = not re.match(r"^[-*+]\s", out[-1])
+            elif re.match(r"^\d+\.\s", line):  # ordered list start
+                needs_blank = not re.match(r"^\d+\.\s", out[-1])
+            elif re.match(r"^[~`]{3}", line):  # fenced code block
+                needs_blank = True
+            if needs_blank:
+                out.append("")
+        out.append(line)
+    return "\n".join(out)
+
+
 def md_to_jira(md_text: str) -> str:
     # Requires pandoc installed:
     #   pandoc --from markdown --to jira
@@ -111,7 +136,7 @@ def main():
     with open(args.markdown_file, "r", encoding="utf-8") as f:
         md = f.read()
 
-    body = md if args.plain else fix_jira_bold_code_nesting(md_to_jira(md))
+    body = md if args.plain else fix_jira_bold_code_nesting(md_to_jira(sanitize_markdown(md)))
 
     update_issue(
         base_url=args.jira_url,
