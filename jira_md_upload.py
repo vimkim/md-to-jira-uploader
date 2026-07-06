@@ -10,6 +10,37 @@ import re
 
 import requests
 
+from korean_spacing import fix_spacing as fix_markdown_korean_inline_spacing
+
+
+KOREAN = r"[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]"
+JIRA_VERBATIM_RE = re.compile(r"^\s*\{(?:code|noformat)(?::[^}]*)?\}\s*$")
+
+
+def is_korean_char(ch: str) -> bool:
+    return re.match(KOREAN, ch) is not None
+
+
+def fix_jira_lines_outside_code_blocks(text: str, fix_line) -> str:
+    result = []
+    in_code = False
+
+    for line in text.splitlines(keepends=True):
+        content = line.rstrip("\r\n")
+        newline = line[len(content):]
+
+        if JIRA_VERBATIM_RE.match(content):
+            in_code = not in_code
+            result.append(line)
+            continue
+
+        if in_code:
+            result.append(line)
+        else:
+            result.append(fix_line(content) + newline)
+
+    return "".join(result)
+
 
 def fix_jira_bold_code_nesting(text: str) -> str:
     """Fix {{monospace}} inside *bold* in JIRA wiki markup.
@@ -42,7 +73,53 @@ def fix_jira_bold_code_nesting(text: str) -> str:
         # Match JIRA bold *...* (non-space after opening, non-space before closing)
         return re.sub(r"\*(?!\s)([^*\n]+?)(?<!\s)\*", _split_bold, line)
 
-    return "\n".join(_fix_line(line) for line in text.split("\n"))
+    return fix_jira_lines_outside_code_blocks(text, _fix_line)
+
+
+JIRA_INLINE_RE = re.compile(
+    r"""
+    \{\{[^\n{}]*?[^\s{}]\}\}      |   # {{monospace}}
+    \*(?!\s)([^*\n]*?[^\s*])\*        # *bold*
+    """,
+    re.VERBOSE,
+)
+
+def fix_korean_jira_inline_spacing_line(text: str) -> str:
+    result = []
+    last = 0
+
+    for m in JIRA_INLINE_RE.finditer(text):
+        start, end = m.span()
+        span = m.group(0)
+
+        result.append(text[last:start])
+
+        prev_char = text[start - 1] if start > 0 else ""
+        next_char = text[end] if end < len(text) else ""
+
+        if prev_char and is_korean_char(prev_char):
+            if not result[-1].endswith(" "):
+                result.append(" ")
+
+        result.append(span)
+
+        if next_char and is_korean_char(next_char):
+            result.append(" ")
+
+        last = end
+
+    result.append(text[last:])
+    return "".join(result)
+
+
+def fix_korean_jira_inline_spacing(text: str) -> str:
+    """Add spaces around Jira inline markup that touches Korean text.
+
+    Jira Server can fail to parse inline wiki markup when the closing marker is
+    immediately followed by Korean suffixes, for example {{code}}의. Jira
+    code/noformat macro bodies must stay byte-for-byte unchanged.
+    """
+    return fix_jira_lines_outside_code_blocks(text, fix_korean_jira_inline_spacing_line)
 
 
 def sanitize_markdown(text: str) -> str:
@@ -86,6 +163,13 @@ def md_to_jira(md_text: str) -> str:
         raise RuntimeError("pandoc is not installed")
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"pandoc failed: {e.stderr}") from e
+
+
+def markdown_to_jira_body(md_text: str) -> str:
+    spaced_markdown = fix_markdown_korean_inline_spacing(md_text)
+    jira_text = md_to_jira(sanitize_markdown(spaced_markdown))
+    jira_text = fix_jira_bold_code_nesting(jira_text)
+    return fix_korean_jira_inline_spacing(jira_text)
 
 
 def update_issue(base_url: str, issue_key: str, username: str, password: str, description: str, summary: Optional[str] = None):
@@ -136,7 +220,7 @@ def main():
     with open(args.markdown_file, "r", encoding="utf-8") as f:
         md = f.read()
 
-    body = md if args.plain else fix_jira_bold_code_nesting(md_to_jira(sanitize_markdown(md)))
+    body = md if args.plain else markdown_to_jira_body(md)
 
     update_issue(
         base_url=args.jira_url,

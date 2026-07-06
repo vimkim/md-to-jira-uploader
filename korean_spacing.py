@@ -15,6 +15,8 @@ INLINE_RE = re.compile(
     re.VERBOSE,
 )
 
+FENCE_RE = re.compile(r"^\s*(```|~~~)")
+
 
 def is_korean_char(ch: str) -> bool:
     return re.match(KOREAN, ch) is not None
@@ -30,7 +32,7 @@ def normalize_span(span: str) -> str:
     return span
 
 
-def fix_spacing(text: str) -> str:
+def fix_inline_spacing(text: str) -> str:
     result = []
     last = 0
 
@@ -55,6 +57,35 @@ def fix_spacing(text: str) -> str:
         last = end
 
     result.append(text[last:])
+    return "".join(result)
+
+
+def fix_spacing(text: str) -> str:
+    result = []
+    in_fence = False
+    fence_marker = ""
+
+    for line in text.splitlines(keepends=True):
+        content = line.rstrip("\r\n")
+        newline = line[len(content):]
+        fence = FENCE_RE.match(content)
+
+        if fence:
+            marker = fence.group(1)
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif marker == fence_marker:
+                in_fence = False
+                fence_marker = ""
+            result.append(line)
+            continue
+
+        if in_fence:
+            result.append(line)
+        else:
+            result.append(fix_inline_spacing(content) + newline)
+
     return "".join(result)
 
 

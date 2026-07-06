@@ -60,6 +60,12 @@ Example:
 jira-md-upload CBRD-26597 CBRD-26597.md
 ```
 
+To post the converted Markdown as a comment instead:
+
+```sh
+jira-md-comment CBRD-26597 CBRD-26597.md
+```
+
 Or via justfile:
 
 ```sh
@@ -77,6 +83,8 @@ just upload-26597
 ## Korean Spacing Fix (`korean-spacing.py`)
 
 Jira cannot render `*italic*` or `**bold**` when the markers are directly adjacent to Korean characters. This script inserts a single space before an opening marker and after a closing marker when the neighboring character is Korean.
+
+`jira-md-upload` and `jira-md-comment` apply this fix automatically before Markdown conversion. They also add spacing around generated Jira inline code spans such as `{{name}}` when those spans touch Korean text.
 
 ### Usage
 
