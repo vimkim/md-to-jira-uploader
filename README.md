@@ -1,4 +1,40 @@
-# jira-md-upload
+# jira-md-upload (deprecated)
+
+> **Deprecated:** This tool has been replaced by
+> [cubrid-jira](https://github.com/vimkim/cubrid-jira).
+> Use `cubrid-jira` for new work; this repository is retained for historical reference.
+
+The ideas and functionality developed here have been integrated into the stabilized
+`cubrid-jira` CLI and the
+[my-cubrid-jira](https://github.com/vimkim/my-cubrid-jira) document base.
+`cubrid-jira` handles Markdown description uploads, comment posting, Korean
+spacing, and Jira formatting fixes. `my-cubrid-jira` maintains issue documents
+and delegates publishing to `cubrid-jira`.
+
+## Migrate to cubrid-jira
+
+```sh
+uv tool install git+https://github.com/vimkim/cubrid-jira.git
+```
+
+Use the replacement commands to preview description updates and comments:
+
+```sh
+# Replaces: jira-md-upload ISSUE_KEY ISSUE_KEY.md
+cubrid-jira update ISSUE_KEY --description-file ISSUE_KEY.md --from markdown
+
+# Replaces: jira-md-comment ISSUE_KEY comment.md
+cubrid-jira comment ISSUE_KEY --body-file comment.md --from markdown
+```
+
+Writes are dry-run by default. Add `--yes` to send the reviewed request.
+Configure credentials with `CUBRID_JIRA_USER` and `CUBRID_JIRA_PASSWORD`, or a
+`jira.cubrid.org` entry in `~/.netrc`. See the
+[cubrid-jira README](https://github.com/vimkim/cubrid-jira#readme) for current
+requirements and usage.
+
+<details>
+<summary>Historical documentation for the deprecated tool</summary>
 
 A CLI tool to upload Markdown content to a Jira issue description.
 
@@ -110,3 +146,5 @@ After:
 ```
 
 Handles `**bold**`, `*italic*`, and `` `code` `` spans.
+
+</details>
